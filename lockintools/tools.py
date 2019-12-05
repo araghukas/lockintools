@@ -9,7 +9,6 @@ import warnings
 import pandas as pd
 import numpy as np
 import time
-import csv
 import os
 import sys
 import simpleaudio as sa
@@ -28,14 +27,22 @@ class LockIn(object):
                 # for Macs; note this requires the driver at:
                 # https://pbxbook.com/other/sw/PL2303_MacOSX_1_6_0.zip
                 self.comm_port = '/dev/cu.usbserial'
+
             elif sys.platform == 'win32':
                 self.comm_port = 'COM5'
+
             else:
                 raise ValueError("must specify `comm_port` if not using MacOS or Windows")
 
-        self.comm = serial.Serial(self.comm_port, baudrate=19200, parity=serial.PARITY_NONE,
-                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
-                                  timeout=3)
+        try:
+            self.comm = serial.Serial(self.comm_port, baudrate=19200, parity=serial.PARITY_NONE,
+                                      stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
+                                      timeout=3)
+        except serial.SerialException:
+            print("FAILED to connect!")
+            if sys.platform == 'darwin':
+                print("make sure the driver is installed:\n"
+                      "https://pbxbook.com/other/sw/PL2303_MacOSX_1_6_0.zip")
 
     def close(self):
         """closes communication port"""
@@ -401,7 +408,7 @@ def freqspace(f_min, f_max, N):
 
 def printornot(string, disp):
     """
-    is there a better way to optinally suppress prints?
+    is there a better way to optionally suppress prints?
     """
     if not disp:
         return
