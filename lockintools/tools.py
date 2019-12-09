@@ -100,7 +100,7 @@ class LockIn(object):
             raise ValueError
 
     def sweep(self, label, freqs, Vs, sens, harm,
-              stb_time=9, mes_time=1, disp=False, L_MAX=50):
+              stb_time=9, mes_time=1, ampl_time=5, disp=False, L_MAX=50):
 
         self.set_harm(harm)
         self.set_sens(sens)
@@ -120,6 +120,8 @@ class LockIn(object):
         for i, V in enumerate(Vs):
             self.set_ampl(V)
             printornot('V = {:.2f} volts'.format(V), disp)
+            printornot('waiting for stabilization after amplitude change...', disp)
+            time.sleep(ampl_time)
             for j, freq in enumerate(freqs):
                 printornot('', disp)
                 self.set_freq(freq)
@@ -286,7 +288,7 @@ class LockInData(object):
         for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
                               [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
 
-            # skip empty datasets
+            # skip empty data sets
             if Data is None:
                 warnings.warn("no recorded data for attribute '{}'"
                               .format(name))
