@@ -33,7 +33,8 @@ class LockIn(object):
 
             else:
                 raise ValueError("must specify `comm_port` if not using MacOS or Windows")
-
+        else:
+            self.comm_port = comm_port
         try:
             self.comm = serial.Serial(self.comm_port, baudrate=19200, parity=serial.PARITY_NONE,
                                       stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
