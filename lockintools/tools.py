@@ -16,6 +16,43 @@ from datetime import datetime
 from lockintools.settings import SETTINGS_DICT
 
 
+def beep(freq=440, duration=1, repeat=3, wait_time=0.5):
+    """
+    plays a beep sound
+    """
+    sample_rate = 44100
+    t = np.linspace(0, duration, duration * sample_rate, False)
+    note = np.sin(freq * t * 2 * np.pi)
+    audio = note * (2**15 - 1) / np.max(np.abs(note))
+    audio = audio.astype(np.int16)
+
+    for i in range(repeat):
+        play_obj = sa.play_buffer(audio, 1, 2, sample_rate)
+        play_obj.wait_done()
+        time.sleep(wait_time)
+
+
+def freqspace(f_min, f_max, N):
+    """
+    creates array of `N` exponentially increasing values between `f_min` and `f_max`
+    """
+    N = int(N)
+    if f_min <= 0 or f_max <= 0:
+        raise ValueError("frequencies must be positive non-zero")
+    elif N <= 0:
+        raise ValueError("number of elements in frequency range must be an integer >= 1")
+    return np.round([f_min * (f_max / f_min)**(i / (N - 1)) for i in range(N)])
+
+
+def printornot(string, disp):
+    """
+    is there a better way to optionally suppress prints?
+    """
+    if not disp:
+        return
+    print(string)
+
+
 class LockIn(object):
     """
     represents a usable connection with the lock-in amp.
@@ -24,8 +61,6 @@ class LockIn(object):
     def __init__(self, comm_port=None):
         if comm_port is None:
             if sys.platform == 'darwin':
-                # for Macs; note this requires the driver at:
-                # https://pbxbook.com/other/sw/PL2303_MacOSX_1_6_0.zip
                 self.comm_port = '/dev/cu.usbserial'
 
             elif sys.platform == 'win32':
@@ -98,45 +133,44 @@ class LockIn(object):
         else:
             raise ValueError
 
-    def sweep(self, label, freqs, Vs, sens, harm,
-              stb_time=9, mes_time=1, ampl_time=5, disp=False, L_MAX=50):
+    def sweep(self, label, freqs, ampls, sens, harm,
+              stb_time=9, meas_time=1, ampl_time=5, print_progress=True, L_MAX=50):
 
         self.set_harm(harm)
         self.set_sens(sens)
 
-        Vs = np.asarray(Vs)
+        ampls = np.asarray(ampls)
         freqs = np.asarray(freqs)
 
-        if Vs.ndim == 0:
-            Vs = Vs[None]
+        if ampls.ndim == 0:
+            ampls = ampls[None]
 
         if freqs.ndim == 0:
             freqs = freqs[None]
 
-        X = np.full((len(Vs), len(freqs), L_MAX), fill_value=np.nan)
-        Y = np.full((len(Vs), len(freqs), L_MAX), fill_value=np.nan)
+        X = np.full((len(ampls), len(freqs), L_MAX), fill_value=np.nan)
+        Y = np.full((len(ampls), len(freqs), L_MAX), fill_value=np.nan)
 
-        for i, V in enumerate(Vs):
+        for i, V in enumerate(ampls):
             self.set_ampl(V)
-            printornot('V = {:.2f} volts'.format(V), disp)
-            printornot('waiting for stabilization after amplitude change...', disp)
+            printornot('V = {:.2f} volts'.format(V), print_progress)
+            printornot('waiting for stabilization after amplitude change...', print_progress)
             time.sleep(ampl_time)
             for j, freq in enumerate(freqs):
-                printornot('', disp)
                 self.set_freq(freq)
 
-                printornot('waiting for stabilization at f = {:.0f} HZ'
-                           .format(freq), disp)
+                printornot('waiting for stabilization at f = {:.0f} Hz'
+                           .format(freq), print_progress)
                 self.cmd('REST')
                 time.sleep(stb_time)
 
-                printornot('taking measurement', disp)
+                printornot('taking measurement', print_progress)
                 # beep(repeat=1)
                 self.cmd('STRT')
-                time.sleep(mes_time)
+                time.sleep(meas_time)
                 self.cmd('PAUS')
 
-                printornot('extracting values', disp)
+                printornot('extracting values', print_progress)
                 N = self.cmd('SPTS?')
 
                 x_str = self.cmd('TRCA?1,0,' + N)
@@ -157,9 +191,9 @@ class LockIn(object):
                     X[i, j] = x[:L_MAX]
                     Y[i, j] = y[:L_MAX]
 
-                printornot('', disp)
+                printornot('', print_progress)
 
-        return SweepData(X, Y, freqs, Vs, label, sens, harm)
+        return SweepData(X, Y, freqs, ampls, label, sens, harm)
 
     def get_config(self):
         raw_config = {}
@@ -186,7 +220,7 @@ class SweepData(object):
 
     def __init__(self, X, Y, freqs, Vs, label, sens, harm):
         dt1 = datetime.now()
-        dt = dt1.strftime("%d-%m-%Y_%H:%M:%S")
+        dt = dt1.strftime("%d-%m-%Y_%H-%M")
         self.ID = '_'.join([label, 'HARM' + str(harm), 'SENS' + str(sens), dt])
 
         # frequency and voltage ranges
@@ -231,24 +265,32 @@ class SweepData(object):
 
 class LockInData(object):
     """
-    contains and manages measurement data in chunks that are instances of `SweepData`, above
+    contains and manages the data of various sweeps
     """
 
-    # TODO: consider standardizing data objects with `tc3omega` module.
+    # TODO: consider standardizing data objects with `tc3omega` package.
 
-    def __init__(self, new_directory=None, **kwargs):
+    def __init__(self, working_dir=None, create_dir=None, **kwargs):
 
-        self.new_directory = new_directory
+        if working_dir is None:
+            self.working_dir = os.getcwd()
+        else:
+            self.working_dir = os.path.expanduser(working_dir)
+
+        self.create_dir = create_dir
         self.directory_created = False
-        self.DIR = None
+        self.DIR = None  # absolute path to directory where files are actually saved; set by `self.init_save()`
 
         self.Vs_3w = None
         self.Vs_1w = None
         self.Vsh_1w = None
 
+        self.add_sweeps(**kwargs)
+
+    def add_sweeps(self, **kwargs):
         for key, Data in kwargs.items():
             if hasattr(self, key):
-                if Data.__class__ is SweepData:
+                if isinstance(Data, SweepData):
                     self.__setattr__(key, Data)
                 else:
                     raise ValueError("keyword argument '{}' is an not instance of "
@@ -261,41 +303,39 @@ class LockInData(object):
         if self.directory_created:
             return
 
-        if self.new_directory is None:
-            self.new_directory = 'recorded_' + str(datetime.date(datetime.now()))
+        if self.create_dir is None:
+            self.create_dir = 'recorded_' + str(datetime.date(datetime.now()))
 
+        # check if created directory name conflicts with any that already exist
         name_conflict = True
         counter = 0
+        os.chdir(self.working_dir)
         while name_conflict:
             try:
-                os.mkdir(self.new_directory)
+                os.mkdir(self.create_dir)
                 name_conflict = False
             except FileExistsError:
                 if counter == 0:
-                    self.new_directory += '(1)'
+                    self.create_dir += '(1)'
                     counter += 1
                 else:
-                    self.new_directory = self.new_directory.replace('({})'.format(counter), '')
+                    self.create_dir = self.create_dir.replace('({})'.format(counter), '')
                     counter += 1
-                    self.new_directory += '({})'.format(counter)
+                    self.create_dir += '({})'.format(counter)
         self.directory_created = True
-
-        self.DIR = '/'.join([os.getcwd(), self.new_directory]) + '/'
+        self.DIR = '/'.join([self.working_dir, self.create_dir, ''])
 
     def save_all(self):
         self.init_save()
-        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
-                              [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
+        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'], [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
 
             # skip empty data sets
             if Data is None:
-                warnings.warn("no recorded data for attribute '{}'"
-                              .format(name))
                 continue
 
             # recall each `Data` is an instance of `SweepData`
-            V_x_file_path = self.DIR + '_'.join(['({})'.format(name), Data.ID]) + '.xlsx'
-            V_y_file_path = self.DIR + '_'.join(['({}_o)'.format(name), Data.ID]) + '.xlsx'
+            V_x_file_path = self.DIR + '_'.join(['{}'.format(name), Data.ID]) + '.xlsx'
+            V_y_file_path = self.DIR + '_'.join(['{}_o'.format(name), Data.ID]) + '.xlsx'
 
             with pd.ExcelWriter(V_x_file_path) as writer:
                 Data.V_x.to_excel(writer, sheet_name='val')
@@ -305,12 +345,11 @@ class LockInData(object):
                 Data.V_y.to_excel(writer, sheet_name='val')
                 Data.dV_y.to_excel(writer, sheet_name='var')
 
-        print("saved all sweeps in '{}'".format(self.DIR))
+        print("saved sweep data in '{}'".format(self.DIR))
 
     def save_tc3omega(self, ampl):
         self.init_save()
-        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
-                              [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
+        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'], [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
             if Data is None:
                 raise ValueError("no recorded data for attribute '{}'"
                                  .format(name))
@@ -322,8 +361,6 @@ class LockInData(object):
         if not (ampl in self.Vs_1w.Vs and ampl in self.Vs_3w.Vs
                 and ampl in self.Vsh_1w.Vs):
             raise ValueError("specified voltage not found in every scan")
-
-        # TODO: I don't like this one bit; too clumsy, too much not DNR
 
         _Vs_3w = self.Vs_3w.V_x[ampl].values
         _Vs_1w = self.Vs_1w.V_x[ampl].values
@@ -349,35 +386,3 @@ class LockInData(object):
         output_df.to_csv(self.DIR + file_name, index=False)
 
         print("saved tc3omega digest in '{}'".format(self.DIR))
-
-
-def beep(freq=440, duration=1, repeat=3, wait_time=0.5):
-    """
-    plays a beep sound
-    """
-    sample_rate = 44100
-    t = np.linspace(0, duration, duration * sample_rate, False)
-    note = np.sin(freq * t * 2 * np.pi)
-    audio = note * (2**15 - 1) / np.max(np.abs(note))
-    audio = audio.astype(np.int16)
-
-    for i in range(repeat):
-        play_obj = sa.play_buffer(audio, 1, 2, sample_rate)
-        play_obj.wait_done()
-        time.sleep(wait_time)
-
-
-def freqspace(f_min, f_max, N):
-    """
-    creates array of `N` exponentially increasing values between `f_min` and `f_max`
-    """
-    return np.round([f_min * (f_max / f_min)**(i / (N - 1)) for i in range(N)])
-
-
-def printornot(string, disp):
-    """
-    is there a better way to optionally suppress prints?
-    """
-    if not disp:
-        return
-    print(string)
