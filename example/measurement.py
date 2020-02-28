@@ -8,7 +8,7 @@ Make sure you've installed lockintools by running
 from the directory that contains `setup.py`
 """
 
-if __name__ = "__main__":
+if __name__ == "__main__":
 
     # connect to lock-in
     lock = LockIn()
