@@ -50,14 +50,12 @@ class LockIn(object):
 
         if self.comm.is_open:
             self.comm.close()
-        return
 
     def open(self):
         """(re)-opens communication port"""
 
         if not self.comm.is_open:
             self.comm.open()
-        return
 
     def cmd(self, command):
         """execute arbitrary lockin command"""
@@ -168,11 +166,11 @@ class LockIn(object):
         for key in SETTINGS_DICT.keys():
             if key != 'names':
                 raw_config[key] = self.cmd(key + '?')
-        return LockInStatus(raw_config)
+        return raw_config
 
     def set_config(self, file_path):
         """set lock in configuration from file"""
-        pass
+        raise NotImplementedError
 
 
 class SweepData(object):
@@ -308,7 +306,6 @@ class LockInData(object):
                 Data.dV_y.to_excel(writer, sheet_name='var')
 
         print("saved all sweeps in '{}'".format(self.DIR))
-        return
 
     def save_tc3omega(self, ampl):
         self.init_save()
@@ -352,38 +349,6 @@ class LockInData(object):
         output_df.to_csv(self.DIR + file_name, index=False)
 
         print("saved tc3omega digest in '{}'".format(self.DIR))
-        return
-
-
-class LockInStatus(object):
-    """
-    NOT QUITE READY
-
-    contains relevant lock-in amplifier settings
-    """
-
-    def __init__(self, raw_config):
-        self.raw_config = raw_config
-        self.config = {}
-        for key in raw_config:
-            readable_key = SETTINGS_DICT['names'][key]
-            self.config[readable_key] = SETTINGS_DICT[key][raw_config[key].strip('\r')]
-        return
-
-    def __call__(self):
-        for key in self.config:
-            print("{: <20} {: >30}"
-                  .format(key, self.config[key]))
-
-    def save(self, path):
-        """save configuration"""
-        pass
-
-    @classmethod
-    def from_file(cls, file_path):
-        """parse text in file; convert to raw_config;"""
-        raw_config = 'not this string but the parsed dict read from a file'
-        return cls(raw_config)
 
 
 def beep(freq=440, duration=1, repeat=3, wait_time=0.5):
