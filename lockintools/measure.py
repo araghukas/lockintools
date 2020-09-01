@@ -24,7 +24,8 @@ class Measure3w(object):
                              meas_time=1,
                              ampl_time=5)
 
-    def __init__(self, freqs=None, ampls=None, lock=None, label=None, working_dir=None, create_dir=None):
+    def __init__(self, freqs=None, ampls=None, lock=None, label=None,
+                 working_dir=None, create_dir=None):
         self.freqs = freqs
         self.ampls = ampls
         self.lock = lock
@@ -38,7 +39,7 @@ class Measure3w(object):
     @label.setter
     def label(self, _label):
         if _label is None:
-            time_stamp = datetime.now().strftime("%b_%d_%Y_%H-%M")  # 'month_dd_yyyy_hr-min'
+            time_stamp = datetime.now().strftime("%b_%d_%Y_%H-%M")
             self._label = '_'.join(['untitled', time_stamp])
         else:
             self._label = str(_label)
@@ -79,24 +80,30 @@ class Measure3w(object):
             raise ValueError("must assign `LockIn` object to this attribute")
 
     def sweep_sample1w(self, **kwargs):
-        if kwargs == {}:
-            kwargs = Measure3w.sample_1w_defaults
+        # TODO: which values are used if kwargs is not {}
+        _kwargs = Measure3w.sample_1w_defaults.copy()
+        for key, value in kwargs.items():
+            _kwargs[key] = value
         print("sweeping sample 1-omega voltage")
-        sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs, ampls=self.ampls, harm=1, **kwargs)
+        sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs,
+                                     ampls=self.ampls, harm=1, **_kwargs)
         self.data.add_sweeps(Vs_1w=sweep_data)
         self.data.save_all()
 
     def sweep_sample3w(self, **kwargs):
-        if kwargs == {}:
-            kwargs = Measure3w.sample_3w_defaults
+        _kwargs = Measure3w.sample_3w_defaults.copy()
+        for key, value in kwargs.items():
+            _kwargs[key] = value
         print("sweeping sample 3-omega voltage")
-        sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs, ampls=self.ampls, harm=3, **kwargs)
+        sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs,
+                                     ampls=self.ampls, harm=3, **_kwargs)
         self.data.add_sweeps(Vs_3w=sweep_data)
         self.data.save_all()
 
     def sweep_shunt1w(self, countdown=True, count=30, **kwargs):
-        if kwargs == {}:
-            kwargs = Measure3w.shunt_1w_defaults
+        _kwargs = Measure3w.shunt_1w_defaults.copy()
+        for key, value in kwargs.items():
+            _kwargs[key] = value
 
         if countdown:
             for i in range(count):
@@ -108,7 +115,8 @@ class Measure3w(object):
                 time.sleep(1)
 
         print("sweeping shunt 1-omega voltage")
-        sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs, ampls=self.ampls, harm=1, **kwargs)
+        sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs,
+                                     ampls=self.ampls, harm=1, **_kwargs)
         self.data.add_sweeps(Vsh_1w=sweep_data)
         self.data.save_all()
 

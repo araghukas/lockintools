@@ -13,7 +13,8 @@ import os
 import sys
 import simpleaudio as sa
 from datetime import datetime
-from lockintools.settings import SETTINGS_DICT
+
+from .settings import SETTINGS_DICT
 
 
 def beep(freq=440, duration=1, repeat=3, wait_time=0.5):
@@ -34,13 +35,14 @@ def beep(freq=440, duration=1, repeat=3, wait_time=0.5):
 
 def freqspace(f_min, f_max, N):
     """
-    creates array of `N` exponentially increasing values between `f_min` and `f_max`
+    creates array of `N` exponentially increasing values from `f_min` to `f_max`
     """
     N = int(N)
     if f_min <= 0 or f_max <= 0:
         raise ValueError("frequencies must be positive non-zero")
     elif N <= 0:
-        raise ValueError("number of elements in frequency range must be an integer >= 1")
+        raise ValueError("number of elements in frequency range must be an "
+                         "integer >= 1")
     return np.round([f_min * (f_max / f_min)**(i / (N - 1)) for i in range(N)])
 
 
@@ -67,12 +69,16 @@ class LockIn(object):
                 self.comm_port = 'COM5'
 
             else:
-                raise ValueError("must specify `comm_port` if not using MacOS or Windows")
+                raise ValueError("must specify `comm_port` if not using MacOS"
+                                 "or Windows")
         else:
             self.comm_port = comm_port
         try:
-            self.comm = serial.Serial(self.comm_port, baudrate=19200, parity=serial.PARITY_NONE,
-                                      stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
+            self.comm = serial.Serial(self.comm_port,
+                                      baudrate=19200,
+                                      parity=serial.PARITY_NONE,
+                                      stopbits=serial.STOPBITS_ONE,
+                                      bytesize=serial.EIGHTBITS,
                                       timeout=3)
         except serial.SerialException:
             print("FAILED to connect!")
@@ -123,7 +129,8 @@ class LockIn(object):
         if 0 <= sens <= 26:
             self.cmd('SENS' + str(sens))
         else:
-            raise ValueError("sensitivity setting must be between 0 (1 nV) and 26 (1 V)")
+            raise ValueError("sensitivity setting must be between 0 (1 nV) and "
+                             "26 (1 V)")
 
     def set_harm(self, harm):
         """set detection harmonic"""
@@ -134,7 +141,8 @@ class LockIn(object):
             raise ValueError
 
     def sweep(self, label, freqs, ampls, sens, harm,
-              stb_time=9, meas_time=1, ampl_time=5, print_progress=True, L_MAX=50):
+              stb_time=9, meas_time=1, ampl_time=5, print_progress=True,
+              L_MAX=50):
 
         self.set_harm(harm)
         self.set_sens(sens)
@@ -154,7 +162,8 @@ class LockIn(object):
         for i, V in enumerate(ampls):
             self.set_ampl(V)
             printornot('V = {:.2f} volts'.format(V), print_progress)
-            printornot('waiting for stabilization after amplitude change...', print_progress)
+            printornot('waiting for stabilization after amplitude change...',
+                       print_progress)
             time.sleep(ampl_time)
             for j, freq in enumerate(freqs):
                 self.set_freq(freq)
@@ -211,11 +220,13 @@ class SweepData(object):
     """
     Contains the data relevant to a single sweep.
 
-    i.e. the amplitude of the oscillations described by the `harm`th harmonic of the voltage measured across the
-    heater line (or shunt), for a driving voltage `V` in `Vs` at a frequency `freq` in `freqs`.
+    i.e. the amplitude of the oscillations described by the `harm`th harmonic of
+    the voltage measured across the heater line (or shunt), for a driving
+    voltage `V` in `Vs` at a frequency `freq` in `freqs`.
 
-    The digested values (ex: `V_x[i]` and `dV_x[i]) at each point are the average of many measurements at that point
-    and the variance of those measurements.
+    The digested values (ex: `V_x[i]` and `dV_x[i]) at each point are the
+    average of many measurements at that point and the variance of those
+    measurements.
     """
 
     def __init__(self, X, Y, freqs, Vs, label, sens, harm):
@@ -250,7 +261,7 @@ class SweepData(object):
 
                 V_x[i, j] = np.mean(_X_)
                 V_y[i, j] = np.mean(_Y_)
-                dV_x[i, j] = np.var(_X_)
+                dV_x[i, j] = np.var(_X_)  # TODO: why not use np.std?
                 dV_y[i, j] = np.var(_Y_)
 
         # converting to DataFrames for readability
@@ -258,9 +269,6 @@ class SweepData(object):
         self.V_y = pd.DataFrame(V_y.T, index=freqs, columns=Vs)
         self.dV_x = pd.DataFrame(dV_x.T, index=freqs, columns=Vs)
         self.dV_y = pd.DataFrame(dV_y.T, index=freqs, columns=Vs)
-
-    def __call__(self):
-        print("data ID: {}".format(self.ID))
 
 
 class LockInData(object):
@@ -279,7 +287,7 @@ class LockInData(object):
 
         self.create_dir = create_dir
         self.directory_created = False
-        self.DIR = None  # absolute path to directory where files are actually saved; set by `self.init_save()`
+        self.DIR = None  # absolute path to directory where files are saved
 
         self.Vs_3w = None
         self.Vs_1w = None
@@ -293,8 +301,9 @@ class LockInData(object):
                 if isinstance(Data, SweepData):
                     self.__setattr__(key, Data)
                 else:
-                    raise ValueError("keyword argument '{}' is an not instance of "
-                                     "`lck_tools.SweepData` class".format(Data))
+                    raise ValueError("keyword argument '{}' is an not instance "
+                                     "of `lck_tools.SweepData` class"
+                                     .format(Data))
             else:
                 raise ValueError("keyword argument '{}' is not one of "
                                  "'Vs_3w', 'Vs_1w', or 'Vsh_1w'.".format(key))
@@ -308,34 +317,40 @@ class LockInData(object):
 
         # check if created directory name conflicts with any that already exist
         name_conflict = True
-        counter = 0
+        d = 0
         os.chdir(self.working_dir)
         while name_conflict:
             try:
                 os.mkdir(self.create_dir)
                 name_conflict = False
             except FileExistsError:
-                if counter == 0:
+                if d == 0:
                     self.create_dir += '(1)'
-                    counter += 1
+                    d += 1
                 else:
-                    self.create_dir = self.create_dir.replace('({})'.format(counter), '')
-                    counter += 1
-                    self.create_dir += '({})'.format(counter)
+                    self.create_dir = self.create_dir.replace('({})'.format(d),
+                                                              '')
+                    d += 1
+                    self.create_dir += '({})'.format(d)
         self.directory_created = True
         self.DIR = '/'.join([self.working_dir, self.create_dir, ''])
 
     def save_all(self):
         self.init_save()
-        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'], [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
+        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
+                              [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
 
             # skip empty data sets
             if Data is None:
                 continue
 
             # recall each `Data` is an instance of `SweepData`
-            V_x_file_path = self.DIR + '_'.join(['{}'.format(name), Data.ID]) + '.xlsx'
-            V_y_file_path = self.DIR + '_'.join(['{}_o'.format(name), Data.ID]) + '.xlsx'
+            V_x_file_path = (self.DIR
+                             + '_'.join(['{}'.format(name), Data.ID])
+                             + '.xlsx')
+            V_y_file_path = (self.DIR
+                             + '_'.join(['{}_o'.format(name), Data.ID])
+                             + '.xlsx')
 
             with pd.ExcelWriter(V_x_file_path) as writer:
                 Data.V_x.to_excel(writer, sheet_name='val')
@@ -349,7 +364,8 @@ class LockInData(object):
 
     def save_tc3omega(self, ampl):
         self.init_save()
-        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'], [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
+        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
+                              [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
             if Data is None:
                 raise ValueError("no recorded data for attribute '{}'"
                                  .format(name))
