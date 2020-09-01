@@ -1,5 +1,5 @@
-import lockintools.tools as lt
-from lockintools.measure import Measure3w
+from lockintools import Measure3w
+from lockintools.tools import freqspace
 
 """
 Make sure you've installed lockintools by running
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     m = Measure3w(working_dir='~/Desktop',
                   create_dir='test_run1',
                   label='custom_test',
-                  freqs=lt.freqspace(10, 1000, 3))  # [10, 100, 1000] Hz
+                  freqs=freqspace(10, 1000, 3))  # [10, 100, 1000] Hz
 
     # can provide LockIn.sweep() arguments as kwargs for the sweep methods
     # below. This includes:

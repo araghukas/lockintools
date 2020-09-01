@@ -2,11 +2,12 @@ from datetime import datetime
 import numpy as np
 import time
 
-import lockintools.tools as lt
+from .tools import freqspace, beep
+from .lockin import LockIn, LockInData
 
 
 class Measure3w(object):
-    default_ranges = dict(freqs=lt.freqspace(10, 15000, 10),
+    default_ranges = dict(freqs=freqspace(10, 15000, 10),
                           ampls=3.0)
 
     sample_1w_defaults = dict(sens=26,
@@ -30,7 +31,7 @@ class Measure3w(object):
         self.ampls = ampls
         self.lock = lock
         self.label = label
-        self.data = lt.LockInData(working_dir, create_dir)
+        self.data = LockInData(working_dir, create_dir)
 
     @property
     def label(self):
@@ -73,8 +74,8 @@ class Measure3w(object):
     @lock.setter
     def lock(self, _lock):
         if _lock is None:
-            self._lock = lt.LockIn()
-        elif isinstance(_lock, lt.LockIn):
+            self._lock = LockIn()
+        elif isinstance(_lock, LockIn):
             self._lock = _lock
         else:
             raise ValueError("must assign `LockIn` object to this attribute")
@@ -108,7 +109,7 @@ class Measure3w(object):
         if countdown:
             for i in range(count):
                 if i % 10 == 0:
-                    lt.beep(freq=550, duration=.5, repeat=5)
+                    beep(freq=550, duration=.5, repeat=5)
                     print("switch input cables to shunt!")
                     print("proceeding in:")
                 print(30 - i)
