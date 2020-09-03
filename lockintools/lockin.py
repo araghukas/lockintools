@@ -14,7 +14,7 @@ import sys
 
 from datetime import datetime
 
-from .settings import SETTINGS_DICT
+from .options import SETTINGS_DICT
 
 
 class LockIn(object):
