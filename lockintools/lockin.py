@@ -4,7 +4,7 @@ Created on Thu Nov 7, 2019
 @author: Pedro and Ara
 """
 
-import serial  # `pyserial` package NOT `serial` package
+import serial  # `pyserial` package; NOT `serial` package
 import warnings
 import pandas as pd
 import numpy as np
@@ -15,7 +15,6 @@ import sys
 from datetime import datetime
 
 from .settings import SETTINGS_DICT
-from .tools import printornot
 
 
 class LockIn(object):
@@ -24,6 +23,8 @@ class LockIn(object):
     """
 
     def __init__(self, comm_port=None):
+
+        # (detect os and) set communication port
         if comm_port is None:
             if sys.platform == 'darwin':
                 self.comm_port = '/dev/cu.usbserial'
@@ -36,34 +37,40 @@ class LockIn(object):
                                  "or Windows")
         else:
             self.comm_port = comm_port
+
+        # set serial port property
         try:
-            self.comm = serial.Serial(self.comm_port,
-                                      baudrate=19200,
-                                      parity=serial.PARITY_NONE,
-                                      stopbits=serial.STOPBITS_ONE,
-                                      bytesize=serial.EIGHTBITS,
-                                      timeout=3)
+            self._comm = serial.Serial(self.comm_port,
+                                       baudrate=19200,
+                                       parity=serial.PARITY_NONE,
+                                       stopbits=serial.STOPBITS_ONE,
+                                       bytesize=serial.EIGHTBITS,
+                                       timeout=3)
         except serial.SerialException:
-            print("FAILED to connect!")
+            print("FAILED to connect! Please check connection.")
             if sys.platform == 'darwin':
                 print("make sure the driver is installed:\n"
                       "https://pbxbook.com/other/sw/PL2303_MacOSX_1_6_0.zip")
 
+        self.print_to_stdout = True
+
+    @property
+    def comm(self):
+        # `serial.Serial` object for handling communications
+        return self._comm
+
     def close(self):
         """closes communication port"""
-
         if self.comm.is_open:
             self.comm.close()
 
     def open(self):
         """(re)-opens communication port"""
-
         if not self.comm.is_open:
             self.comm.open()
 
     def cmd(self, command):
         """execute arbitrary lockin command"""
-
         self.comm.write(str.encode(command + '\n'))
         self.comm.flush()
         if '?' in command:
@@ -73,22 +80,19 @@ class LockIn(object):
             return
 
     def set_freq(self, freq):
-        """set frequency"""
-
+        """set lock-in amp. frequency"""
         command = 'FREQ' + str(freq)
         return self.cmd(command)
 
     def set_ampl(self, ampl):
-        """set voltage oscillation amplitude"""
-
+        """set lock-in amp. voltage amplitude"""
         if ampl > 5.:
             raise ValueError("can not exceed amplitude of 5V")
         command = 'SLVL' + str(ampl)
         return self.cmd(command)
 
     def set_sens(self, sens):
-        """set sensitivity"""
-
+        """set lock-in amp. sensitivity"""
         if 0 <= sens <= 26:
             self.cmd('SENS' + str(sens))
         else:
@@ -96,16 +100,34 @@ class LockIn(object):
                              "26 (1 V)")
 
     def set_harm(self, harm):
-        """set detection harmonic"""
-
+        """set lock-in amp. detection harmonic"""
+        harm = int(harm)
         if 1 <= harm <= 19999:
             self.cmd('HARM' + str(harm))
         else:
-            raise ValueError
+            raise ValueError("harmonic must be between 1 and 19999")
 
-    def sweep(self, label, freqs, ampls, sens, harm,
-              stb_time=9, meas_time=1, ampl_time=5, print_progress=True,
-              L_MAX=50):
+    def sweep(self, label: str, freqs, ampls, sens: int, harm: int,
+              stb_time: float = 9.,
+              meas_time: float = 1.,
+              ampl_time: float = 5.,
+              L_MAX: int = 50):
+        """
+        Conduct a frequency sweep measurement across one or more voltage
+        amplitudes.
+
+        :param label: (string) label for the sweep data
+        :param freqs: (scalar or array-like) freqs. to sweep over
+        :param ampls: (scalar or array-like) amplitudes to sweep over
+        :param sens: (int) integer indicating lock-in amp. sensitivity setting
+        :param harm: (int) detection harmonic
+        :param stb_time: (float) time (s) for stabilization at each freq.
+        :param meas_time: (float) time (s) for data collection at each freq.
+        :param ampl_time: (float) time (s) for stabilization at each voltage
+        :param L_MAX: (int) maximum data array size
+        :return: (lockin.SweepData) container of pandas `DataFrame`s for
+                 in- and out-of-phase detected voltages, and variances thereof
+        """
 
         self.set_harm(harm)
         self.set_sens(sens)
@@ -119,30 +141,34 @@ class LockIn(object):
         if freqs.ndim == 0:
             freqs = freqs[None]
 
+        # buffer arrays for in- and out-of-phase data
         X = np.full((len(ampls), len(freqs), L_MAX), fill_value=np.nan)
         Y = np.full((len(ampls), len(freqs), L_MAX), fill_value=np.nan)
 
         for i, V in enumerate(ampls):
-            self.set_ampl(V)
-            printornot('V = {:.2f} volts'.format(V), print_progress)
-            printornot('waiting for stabilization after amplitude change...',
-                       print_progress)
-            time.sleep(ampl_time)
-            for j, freq in enumerate(freqs):
-                self.set_freq(freq)
 
-                printornot('waiting for stabilization at f = {:.0f} Hz'
-                           .format(freq), print_progress)
+            self._print('V = {:.2f} volts'.format(V))
+            self._print('waiting for stabilization after amplitude change...')
+
+            self.set_ampl(V)
+            time.sleep(ampl_time)
+
+            for j, freq in enumerate(freqs):
+
+                self._print('waiting for stabilization at f = {:.0f} Hz'
+                            .format(freq))
+
+                self.set_freq(freq)
                 self.cmd('REST')
                 time.sleep(stb_time)
 
-                printornot('taking measurement', print_progress)
+                self._print('taking measurement')
                 # beep(repeat=1)
                 self.cmd('STRT')
                 time.sleep(meas_time)
                 self.cmd('PAUS')
 
-                printornot('extracting values', print_progress)
+                self._print('extracting values')
                 N = self.cmd('SPTS?')
 
                 x_str = self.cmd('TRCA?1,0,' + N)
@@ -150,20 +176,20 @@ class LockIn(object):
 
                 # list of values measured at a single point
                 # last character is a newline character
-                x = np.array([float(_) for _ in x_str.split(',')[:-1]])
-                y = np.array([float(_) for _ in y_str.split(',')[:-1]])
+                x = np.array([float(x_) for x_ in x_str.strip().split(',')])
+                y = np.array([float(y_) for y_ in y_str.strip().split(',')])
 
                 try:
                     X[i, j][:len(x)] = x
                     Y[i, j][:len(x)] = y
                 except ValueError:
-                    warnings.warn("buffer overflow encountered at point "
+                    warnings.warn("buffer array overflow encountered at point "
                                   "f = {:.1f} Hz, V = {:.1f} volts"
                                   .format(freq, V))
                     X[i, j] = x[:L_MAX]
                     Y[i, j] = y[:L_MAX]
 
-                printornot('', print_progress)
+                self._print('')
 
         return SweepData(X, Y, freqs, ampls, label, sens, harm)
 
@@ -174,9 +200,9 @@ class LockIn(object):
                 raw_config[key] = self.cmd(key + '?')
         return raw_config
 
-    def set_config(self, file_path):
-        """set lock in configuration from file"""
-        raise NotImplementedError
+    def _print(self, s):
+        if self.print_to_stdout:
+            print(s)
 
 
 class SweepData(object):
@@ -184,7 +210,7 @@ class SweepData(object):
     Contains the data relevant to a single sweep.
 
     i.e. the amplitude of the oscillations described by the `harm`th harmonic of
-    the voltage measured across the heater line (or shunt), for a driving
+    the voltage measured across the heater line or shunt, for a driving
     voltage `V` in `Vs` at a frequency `freq` in `freqs`.
 
     The digested values (ex: `V_x[i]` and `dV_x[i]) at each point are the
@@ -224,7 +250,7 @@ class SweepData(object):
 
                 V_x[i, j] = np.mean(_X_)
                 V_y[i, j] = np.mean(_Y_)
-                dV_x[i, j] = np.var(_X_)  # TODO: why not use np.std?
+                dV_x[i, j] = np.var(_X_)
                 dV_y[i, j] = np.var(_Y_)
 
         # converting to DataFrames for readability
@@ -341,14 +367,13 @@ class LockInData(object):
                 and ampl in self.Vsh_1w.Vs):
             raise ValueError("specified voltage not found in every scan")
 
+        # unpack dataframes into arrays
         _Vs_3w = self.Vs_3w.V_x[ampl].values
         _Vs_1w = self.Vs_1w.V_x[ampl].values
         _Vsh_1w = self.Vsh_1w.V_x[ampl].values
-
         _Vs_3w_o = self.Vs_3w.V_y[ampl].values
         _Vs_1w_o = self.Vs_1w.V_y[ampl].values
         _Vsh_1w_o = self.Vsh_1w.V_y[ampl].values
-
         output = np.array([_Vs_3w, _Vs_3w_o,
                            _Vs_1w, _Vs_1w_o,
                            _Vsh_1w, _Vsh_1w_o])
@@ -361,7 +386,5 @@ class LockInData(object):
         output_df.insert(0, 'freq', self.Vs_1w.freqs)
 
         file_name = 'tc3omega_data_{}_V'.format(ampl) + '.csv'
-
         output_df.to_csv(self.DIR + file_name, index=False)
-
         print("saved tc3omega digest in '{}'".format(self.DIR))
