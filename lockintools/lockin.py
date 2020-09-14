@@ -176,8 +176,8 @@ class LockIn(object):
 
                 # list of values measured at a single point
                 # last character is a newline character
-                x = np.array([float(x_) for x_ in x_str.strip().split(',')])
-                y = np.array([float(y_) for y_ in y_str.strip().split(',')])
+                x = np.array([float(_) for _ in x_str.split(',')[:-1]])
+                y = np.array([float(_) for _ in y_str.split(',')[:-1]])
 
                 try:
                     X[i, j][:len(x)] = x
