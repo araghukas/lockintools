@@ -155,7 +155,7 @@ class LockIn(object):
 
             for j, freq in enumerate(freqs):
 
-                self._print('waiting for stabilization at f = {:.0f} Hz'
+                self._print('waiting for stabilization at f = {:.4f} Hz'
                             .format(freq))
 
                 self.set_freq(freq)
