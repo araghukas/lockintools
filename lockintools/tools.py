@@ -29,7 +29,7 @@ def freqspace(f_min, f_max, N):
     elif N <= 0:
         raise ValueError("number of elements in frequency range must be an "
                          "integer >= 1")
-    return np.round([f_min * (f_max / f_min)**(i / (N - 1)) for i in range(N)])
+    return np.array([f_min * (f_max / f_min)**(i / (N - 1)) for i in range(N)])
 
 
 def printornot(string, disp):
