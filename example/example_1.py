@@ -10,7 +10,7 @@ from the directory that contains `setup.py`
 
 To run the code below:
 
-    >>> python example_1.py
+    >>> python3 example_1.py
 """
 
 if __name__ == "__main__":
