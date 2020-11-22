@@ -6,7 +6,7 @@ Download or clone
 
     git clone https://github.com/araghukas/lockintools.git
     
-Navigate the `lockintools-0.1` directory, which containts `setup.py`, then
+Navigate to the `lockintools-0.1` directory, which containts `setup.py`, then
 
     pip install .
     
