@@ -15,7 +15,6 @@ setup(
                       "pandas",
                       "simpleaudio",
                       "pyserial",
-                      "datetime",
-                      "openpyxl"],
+                      "datetime"],
     zip_safe=False
 )
