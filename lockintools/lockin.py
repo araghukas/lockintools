@@ -16,7 +16,11 @@ from datetime import datetime
 
 from .options import SETTINGS_DICT
 
+# link to usb-serial driver for macOS
 _L1 = "http://www.prolific.com.tw/UserFiles/files/PL2303HXD_G_Driver_v2_0_0_20191204.zip"
+
+# blog post explaining how to bypass blocked extensions
+# need this because no Big Sur version of driver as of Jan 7 2020.
 _L2 = "https://eclecticlight.co/2019/06/01/how-to-bypass-mojave-10-14-5s-new-kext-security/"
 
 
