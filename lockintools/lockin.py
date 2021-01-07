@@ -16,6 +16,9 @@ from datetime import datetime
 
 from .options import SETTINGS_DICT
 
+_L1 = "http://www.prolific.com.tw/UserFiles/files/PL2303HXD_G_Driver_v2_0_0_20191204.zip"
+_L2 = "https://eclecticlight.co/2019/06/01/how-to-bypass-mojave-10-14-5s-new-kext-security/"
+
 
 class LockIn(object):
     """
@@ -27,7 +30,7 @@ class LockIn(object):
         # (detect os and) set communication port
         if comm_port is None:
             if sys.platform == 'darwin':
-                self.comm_port = '/dev/cu.usbserial'
+                self.comm_port = '/dev/cu.usbserial-1410'
 
             elif sys.platform == 'win32':
                 self.comm_port = 'COM5'
@@ -49,8 +52,9 @@ class LockIn(object):
         except serial.SerialException:
             print("FAILED to connect! Please check connection.")
             if sys.platform == 'darwin':
-                print("make sure the driver is installed:\n"
-                      "https://pbxbook.com/other/sw/PL2303_MacOSX_1_6_0.zip")
+                print("make sure the driver is installed:\n%s" % _L1)
+                print("NOTE: macOS Big Sur 11.1 or later will object to this "
+                      "extension. See:\n%s" % _L2)
 
         self.print_to_stdout = True
 
