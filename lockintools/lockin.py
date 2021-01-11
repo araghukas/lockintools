@@ -163,8 +163,8 @@ class LockIn(object):
 
             for j, freq in enumerate(freqs):
 
-                self._print('waiting for stabilization at f = {:.4f} Hz'
-                            .format(freq))
+                self._print("waiting for stabilization at f = {:.4f} Hz "
+                            "({:d}/{:d})".format(freq, j + 1, len(freqs)))
 
                 self.set_freq(freq)
                 self.cmd('REST')
@@ -197,6 +197,9 @@ class LockIn(object):
                     X[i, j] = x[:L_MAX]
                     Y[i, j] = y[:L_MAX]
 
+                x_ = np.mean(x[~np.isnan(x)])
+                y_ = np.mean(y[~np.isnan(y)])
+                self._print("x_ave, y_ave = {:.4e}, {:.4e} [V]".format(x_, y_))
                 self._print('')
 
         return SweepData(X, Y, freqs, ampls, label, sens, harm)
