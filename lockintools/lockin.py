@@ -163,20 +163,20 @@ class LockIn(object):
 
             for j, freq in enumerate(freqs):
 
-                self._print("waiting for stabilization at f = {:.4f} Hz "
-                            "({:d}/{:d})".format(freq, j + 1, len(freqs)))
+                # self._print("waiting for stabilization at f = {:.4f} Hz "
+                #             "({:d}/{:d})".format(freq, j + 1, len(freqs)))
 
                 self.set_freq(freq)
                 self.cmd('REST')
                 time.sleep(stb_time)
 
-                self._print('taking measurement')
+                # self._print('taking measurement')
                 # beep(repeat=1)
                 self.cmd('STRT')
                 time.sleep(meas_time)
                 self.cmd('PAUS')
 
-                self._print('extracting values')
+                # self._print('extracting values')
                 N = self.cmd('SPTS?')
 
                 x_str = self.cmd('TRCA?1,0,' + N)
@@ -199,8 +199,10 @@ class LockIn(object):
 
                 x_ = np.mean(x[~np.isnan(x)])
                 y_ = np.mean(y[~np.isnan(y)])
-                self._print("x_ave, y_ave = {:.4e}, {:.4e} [V]".format(x_, y_))
-                self._print('')
+                self._print(
+                    "({:>3d} : {:>10,.2f} Hz) x_ave, y_ave = {:.4e}, {:.4e} [V]"
+                    .format(j + 1, freq, x_, y_))
+                # self._print('')
 
         return SweepData(X, Y, freqs, ampls, label, sens, harm)
 
