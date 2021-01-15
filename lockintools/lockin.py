@@ -115,6 +115,30 @@ class LockIn(object):
         else:
             raise ValueError("harmonic must be between 1 and 19999")
 
+    def get_reading(self, ch, meas_time=0.1, stdev=False):
+        """
+        read average value from channel `ch` over `meas_time` seconds
+        optionally, also return standard deviation (`stdev=True`)
+        """
+        if not (ch == 1 or ch == 2):
+            raise ValueError("channel `ch` should be 1 or 2")
+
+        self.cmd("STRT")
+        time.sleep(meas_time)
+        self.cmd("PAUS")
+        N = self.cmd("SPTS?")
+        r_str = self.cmd("TRCA?" + str(ch) + ",0," + N)
+        r = [float(ri) for ri in r_str.split(',')[:-1]]
+        if stdev:
+            return np.mean(r), np.std(r)
+        return np.mean(r)
+
+    def get_x(self, stdev=False):
+        return self.get_reading(ch=1, stdev=stdev)
+
+    def get_y(self, stdev=False):
+        return self.get_reading(ch=2, stdev=stdev)
+
     def sweep(self, label: str, freqs, ampls, sens: int, harm: int,
               stb_time: float = 9.,
               meas_time: float = 1.,
