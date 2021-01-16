@@ -123,6 +123,7 @@ class LockIn(object):
         if not (ch == 1 or ch == 2):
             raise ValueError("channel `ch` should be 1 or 2")
 
+        self.cmd("REST")
         self.cmd("STRT")
         time.sleep(meas_time)
         self.cmd("PAUS")
@@ -133,11 +134,11 @@ class LockIn(object):
             return np.mean(r), np.std(r)
         return np.mean(r)
 
-    def get_x(self, stdev=False):
-        return self.get_reading(ch=1, stdev=stdev)
+    def get_x(self, meas_time=0.1, stdev=False):
+        return self.get_reading(ch=1, meas_time=meas_time, stdev=stdev)
 
-    def get_y(self, stdev=False):
-        return self.get_reading(ch=2, stdev=stdev)
+    def get_y(self, meas_time=0.1, stdev=False):
+        return self.get_reading(ch=2, meas_time=meas_time, stdev=stdev)
 
     def sweep(self, label: str, freqs, ampls, sens: int, harm: int,
               stb_time: float = 9.,
