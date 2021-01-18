@@ -288,8 +288,8 @@ class SweepData(object):
 
                 V_x[i, j] = np.mean(_X_)
                 V_y[i, j] = np.mean(_Y_)
-                dV_x[i, j] = np.var(_X_)
-                dV_y[i, j] = np.var(_Y_)
+                dV_x[i, j] = np.std(_X_)
+                dV_y[i, j] = np.std(_Y_)
 
         # converting to DataFrames for readability
         self.V_x = pd.DataFrame(V_x.T, index=freqs, columns=Vs)
@@ -391,9 +391,9 @@ class LockInData(object):
 
     def save_tc3omega(self, ampl):
         self.init_save()
-        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
+        for name, data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
                               [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
-            if Data is None:
+            if data is None:
                 raise ValueError("no recorded data for attribute '{}'"
                                  .format(name))
 
@@ -405,7 +405,7 @@ class LockInData(object):
                 and ampl in self.Vsh_1w.Vs):
             raise ValueError("specified voltage not found in every scan")
 
-        # unpack dataframes into arrays
+        # unpack DataFrames into arrays
         _Vs_3w = self.Vs_3w.V_x[ampl].values
         _Vs_1w = self.Vs_1w.V_x[ampl].values
         _Vsh_1w = self.Vsh_1w.V_x[ampl].values
