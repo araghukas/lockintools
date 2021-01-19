@@ -28,6 +28,7 @@ class LockIn(object):
     """
     represents a usable connection with the lock-in amp.
     """
+    PRINT_BLANK = "({:>3d} : {:>10,.2f} Hz) x_ave, y_ave = {:.4e}, {:.4e} [V]"
 
     def __init__(self, comm_port=None):
 
@@ -224,9 +225,7 @@ class LockIn(object):
 
                 x_ = np.mean(x[~np.isnan(x)])
                 y_ = np.mean(y[~np.isnan(y)])
-                self._print(
-                    "({:>3d} : {:>10,.2f} Hz) x_ave, y_ave = {:.4e}, {:.4e} [V]"
-                    .format(j + 1, freq, x_, y_))
+                self._print(LockIn.PRINT_BLANK.format(j + 1, freq, x_, y_))
                 # self._print('')
 
         return SweepData(X, Y, freqs, ampls, label, sens, harm)
@@ -323,14 +322,14 @@ class LockInData(object):
         self.add_sweeps(**kwargs)
 
     def add_sweeps(self, **kwargs):
-        for key, Data in kwargs.items():
+        for key, sweep_data in kwargs.items():
             if hasattr(self, key):
-                if isinstance(Data, SweepData):
-                    self.__setattr__(key, Data)
+                if isinstance(sweep_data, SweepData):
+                    self.__setattr__(key, sweep_data)
                 else:
                     raise ValueError("keyword argument '{}' is an not instance "
                                      "of `lck_tools.SweepData` class"
-                                     .format(Data))
+                                     .format(sweep_data))
             else:
                 raise ValueError("keyword argument '{}' is not one of "
                                  "'Vs_3w', 'Vs_1w', or 'Vsh_1w'.".format(key))
@@ -364,36 +363,36 @@ class LockInData(object):
 
     def save_all(self):
         self.init_save()
-        for name, Data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
-                              [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
+        for name, sweep_data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
+                                    [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
 
             # skip empty data sets
-            if Data is None:
+            if sweep_data is None:
                 continue
 
             # recall each `Data` is an instance of `SweepData`
             V_x_file_path = (self.DIR
-                             + '_'.join(['{}'.format(name), Data.ID])
+                             + '_'.join(['{}'.format(name), sweep_data.ID])
                              + '.xlsx')
             V_y_file_path = (self.DIR
-                             + '_'.join(['{}_o'.format(name), Data.ID])
+                             + '_'.join(['{}_o'.format(name), sweep_data.ID])
                              + '.xlsx')
 
             with pd.ExcelWriter(V_x_file_path) as writer:
-                Data.V_x.to_excel(writer, sheet_name='val')
-                Data.dV_x.to_excel(writer, sheet_name='var')
+                sweep_data.V_x.to_excel(writer, sheet_name='val')
+                sweep_data.dV_x.to_excel(writer, sheet_name='var')
 
             with pd.ExcelWriter(V_y_file_path) as writer:
-                Data.V_y.to_excel(writer, sheet_name='val')
-                Data.dV_y.to_excel(writer, sheet_name='var')
+                sweep_data.V_y.to_excel(writer, sheet_name='val')
+                sweep_data.dV_y.to_excel(writer, sheet_name='var')
 
         print("saved sweep data in '{}'".format(self.DIR))
 
     def save_tc3omega(self, ampl):
         self.init_save()
-        for name, data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
-                              [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
-            if data is None:
+        for name, sweep_data in zip(['Vs_3w', 'Vs_1w', 'Vsh_1w'],
+                                    [self.Vs_3w, self.Vs_1w, self.Vsh_1w]):
+            if sweep_data is None:
                 raise ValueError("no recorded data for attribute '{}'"
                                  .format(name))
 
@@ -406,23 +405,47 @@ class LockInData(object):
             raise ValueError("specified voltage not found in every scan")
 
         # unpack DataFrames into arrays
+        # values
         _Vs_3w = self.Vs_3w.V_x[ampl].values
         _Vs_1w = self.Vs_1w.V_x[ampl].values
         _Vsh_1w = self.Vsh_1w.V_x[ampl].values
         _Vs_3w_o = self.Vs_3w.V_y[ampl].values
         _Vs_1w_o = self.Vs_1w.V_y[ampl].values
         _Vsh_1w_o = self.Vsh_1w.V_y[ampl].values
-        output = np.array([_Vs_3w, _Vs_3w_o,
-                           _Vs_1w, _Vs_1w_o,
-                           _Vsh_1w, _Vsh_1w_o])
+        # standard deviation of values
+        _dVs_3w = self.Vs_3w.dV_x[ampl].values
+        _dVs_1w = self.Vs_1w.dV_x[ampl].values
+        _dVsh_1w = self.Vsh_1w.dV_x[ampl].values
+        _dVs_3w_o = self.Vs_3w.dV_y[ampl].values
+        _dVs_1w_o = self.Vs_3w.dV_y[ampl].values
+        _dVsh_1w_o = self.Vsh_1w.dV_y[ampl].values
 
-        columns = ['Vs_3w', 'Vs_3w_o',
-                   'Vs_1w', 'Vs_1w_o',
-                   'Vsh_1w', 'Vsh_1w_o']
+        # write voltage values
+        V_output = np.array([_Vs_3w, _Vs_3w_o,
+                             _Vs_1w, _Vs_1w_o,
+                             _Vsh_1w, _Vsh_1w_o])
+        V_columns = ['Vs_3w', 'Vs_3w_o',
+                     'Vs_1w', 'Vs_1w_o',
+                     'Vsh_1w', 'Vsh_1w_o']
 
-        output_df = pd.DataFrame(output.T, columns=columns)
-        output_df.insert(0, 'freq', self.Vs_1w.freqs)
+        V_output_df = pd.DataFrame(V_output.T, columns=V_columns)
+        V_output_df.insert(0, 'freq', self.Vs_1w.freqs)
 
-        file_name = 'tc3omega_data_{}_V'.format(ampl) + '.csv'
-        output_df.to_csv(self.DIR + file_name, index=False)
+        V_file_name = 'tc3omega_data_{}_V'.format(ampl) + '.csv'
+        V_output_df.to_csv(self.DIR + V_file_name, index=False)
         print("saved tc3omega digest in '{}'".format(self.DIR))
+
+        # write voltage errors
+        dV_output = np.array([_dVs_3w, _dVs_3w_o,
+                              _dVs_1w, _dVs_1w_o,
+                              _dVsh_1w, _dVsh_1w_o])
+        dV_columns = ['dVs_3w', 'dVs_3w_o',
+                      'dVs_1w', 'dVs_1w_o',
+                      'dVsh_1w', 'dVsh_1w_o']
+
+        dV_output_df = pd.DataFrame(dV_output.T, columns=dV_columns)
+        dV_output_df.insert(0, 'freq', self.Vs_1w.freqs)
+
+        dV_file_name = 'tc3omega_data_{}_V'.format(ampl) + '.error.csv'
+        dV_output_df.to_csv(self.DIR + dV_file_name, index=False)
+        print("saved tc3omega error digest in '{}'".format(self.DIR))
