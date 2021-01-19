@@ -31,7 +31,8 @@ class LockIn(object):
     PRINT_BLANK = "({:>3d} : {:>10,.2f} Hz) x_ave, y_ave = {:.4e}, {:.4e} [V]"
 
     def __init__(self, comm_port=None):
-
+        # TODO: more robust procedure here
+        
         # (detect os and) set communication port
         if comm_port is None:
             if sys.platform == 'darwin':
@@ -39,6 +40,9 @@ class LockIn(object):
 
             elif sys.platform == 'win32':
                 self.comm_port = 'COM5'
+
+            elif sys.platform == 'linux':
+                self.comm_port = '/dev/ttyAMA0'
 
             else:
                 raise ValueError("must specify `comm_port` if not using MacOS"
