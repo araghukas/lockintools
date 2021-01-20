@@ -39,7 +39,8 @@ class LockIn(object):
     """
     represents a usable connection with the lock-in amp.
     """
-    PRINT_BLANK = "({:>3d} : {:>10,.2f} Hz) x_ave, y_ave = {:.4e}, {:.4e} [V]"
+    SWEEP_HEADER = "{:>3} \t {:>15} \t {:>15} \t {:>15}"
+    SWEEP_BLANK = "{:>3d} \t {:>15,.2f} \t {:>15,.4e} \t {:>15,.4e}"
 
     @staticmethod
     def get_serial(comm_port):
@@ -212,6 +213,8 @@ class LockIn(object):
             self.set_ampl(V)
             time.sleep(ampl_time)
 
+            self._print('')
+            self._print(LockIn.SWEEP_HEADER.format('', 'freq [Hz]', 'X [V]', 'Y [V]'))
             for j, freq in enumerate(freqs):
 
                 # self._print("waiting for stabilization at f = {:.4f} Hz "
@@ -250,8 +253,8 @@ class LockIn(object):
 
                 x_ = np.mean(x[~np.isnan(x)])
                 y_ = np.mean(y[~np.isnan(y)])
-                self._print(LockIn.PRINT_BLANK.format(j + 1, freq, x_, y_))
-                # self._print('')
+                self._print(LockIn.SWEEP_BLANK.format(j + 1, freq, x_, y_))
+            self._print('')
 
         return SweepData(X, Y, freqs, ampls, label, sens, harm)
 
