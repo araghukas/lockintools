@@ -37,7 +37,7 @@ class LockInError(Exception):
 
 class LockIn(object):
     """
-    represents a usable connection with the lock-in amp.
+    represents a usable connection with the lock-in amplifier
     """
     SWEEP_HEADER = "{:>3} \t {:>15} \t {:>15} \t {:>15}"
     SWEEP_BLANK = "{:>3d} \t {:>15,.2f} \t {:>15,.4e} \t {:>15,.4e}"
