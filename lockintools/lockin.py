@@ -211,6 +211,7 @@ class LockIn(object):
             self._print('waiting for stabilization after amplitude change...')
 
             self.set_ampl(V)
+            self.set_freq(freqs[0])
             time.sleep(ampl_time)
 
             self._print('')
@@ -349,6 +350,22 @@ class LockInData(object):
 
         self.add_sweeps(**kwargs)
 
+        # paths to output files
+        self._V_file = None
+        self._dV_file = None
+
+    @property
+    def V_file(self):
+        if self._V_file is None:
+            raise ValueError("have not saved voltage data to any file")
+        return self._V_file
+
+    @property
+    def dV_file(self):
+        if self._dV_file is None:
+            raise ValueError("have not save error data to any file")
+        return self._dV_file
+
     def add_sweeps(self, **kwargs):
         for key, sweep_data in kwargs.items():
             if hasattr(self, key):
@@ -459,8 +476,9 @@ class LockInData(object):
         V_output_df = pd.DataFrame(V_output.T, columns=V_columns)
         V_output_df.insert(0, 'freq', self.Vs_1w.freqs)
 
-        V_file_name = 'tc3omega_data_{}_V'.format(ampl) + '.csv'
-        V_output_df.to_csv(self.DIR + V_file_name, index=False)
+        V_file = self.DIR + 'tc3omega_data_{}_V'.format(ampl) + '.csv'
+        V_output_df.to_csv(V_file, index=False)
+        self._V_file = V_file
         print("saved tc3omega digest in '{}'".format(self.DIR))
 
         # write voltage errors
@@ -474,6 +492,7 @@ class LockInData(object):
         dV_output_df = pd.DataFrame(dV_output.T, columns=dV_columns)
         dV_output_df.insert(0, 'freq', self.Vs_1w.freqs)
 
-        dV_file_name = 'tc3omega_data_{}_V'.format(ampl) + '.error.csv'
-        dV_output_df.to_csv(self.DIR + dV_file_name, index=False)
+        dV_file = self.DIR + 'tc3omega_data_{}_V'.format(ampl) + '.error.csv'
+        dV_output_df.to_csv(dV_file, index=False)
+        self._dV_file = dV_file
         print("saved tc3omega error digest in '{}'".format(self.DIR))
