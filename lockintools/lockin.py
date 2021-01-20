@@ -11,8 +11,14 @@ import numpy as np
 import time
 import os
 import sys
-
 from datetime import datetime
+
+try:
+    from serial.tools import list_ports
+
+    IMPORTED_LIST_PORTS = True
+except ValueError:
+    IMPORTED_LIST_PORTS = False
 
 from .options import SETTINGS_DICT
 
@@ -24,47 +30,62 @@ _L1 = "http://www.prolific.com.tw/UserFiles/files/PL2303HXD_G_Driver_v2_0_0_2019
 _L2 = "https://eclecticlight.co/2019/06/01/how-to-bypass-mojave-10-14-5s-new-kext-security/"
 
 
+class LockInError(Exception):
+    """named exception for LockIn serial port connection issues"""
+    pass
+
+
 class LockIn(object):
     """
     represents a usable connection with the lock-in amp.
     """
     PRINT_BLANK = "({:>3d} : {:>10,.2f} Hz) x_ave, y_ave = {:.4e}, {:.4e} [V]"
 
-    def __init__(self, comm_port=None):
-        # TODO: more robust procedure here
-        
+    @staticmethod
+    def get_serial(comm_port):
+        return serial.Serial(comm_port,
+                             baudrate=19200,
+                             parity=serial.PARITY_NONE,
+                             stopbits=serial.STOPBITS_ONE,
+                             bytesize=serial.EIGHTBITS,
+                             timeout=3)
+
+    DEFAULT_PORTS = {
+        'darwin': ['/dev/cu.usbserial-1410'],
+        'win32': ['COM5'],
+        'linux': ['/dev/ttyUSB0']
+    }
+
+    def __init__(self, comm_port: str = None):
         # (detect os and) set communication port
-        if comm_port is None:
-            if sys.platform == 'darwin':
-                self.comm_port = '/dev/cu.usbserial-1410'
-
-            elif sys.platform == 'win32':
-                self.comm_port = 'COM5'
-
-            elif sys.platform == 'linux':
-                self.comm_port = '/dev/ttyAMA0'
-
-            else:
-                raise ValueError("must specify `comm_port` if not using MacOS"
-                                 "or Windows")
+        self._comm = None
+        if comm_port is not None:
+            try:
+                self._comm = LockIn.get_serial(comm_port)
+            except serial.SerialException:
+                print("lockintools: could not connect to port: %s" % comm_port)
         else:
-            self.comm_port = comm_port
+            print("lockintools: trying default ports for platform: %s" % sys.platform)
+            for cp in LockIn.DEFAULT_PORTS[sys.platform]:
+                try:
+                    self._comm = LockIn.get_serial(cp)
+                    break
+                except serial.SerialException:
+                    print("lockintools: could not connect to port: %s" % cp)
 
-        # set serial port property
-        try:
-            self._comm = serial.Serial(self.comm_port,
-                                       baudrate=19200,
-                                       parity=serial.PARITY_NONE,
-                                       stopbits=serial.STOPBITS_ONE,
-                                       bytesize=serial.EIGHTBITS,
-                                       timeout=3)
-        except serial.SerialException:
-            print("FAILED to connect! Please check connection.")
-            if sys.platform == 'darwin':
-                print("make sure the driver is installed:\n%s" % _L1)
-                print("NOTE: macOS Big Sur 11.1 or later will object to this "
-                      "extension. See:\n%s" % _L2)
+            if self._comm is None and IMPORTED_LIST_PORTS:
+                print("lockintools: tying to detect port and auto-connect...")
+                for cp_match in list_ports.grep("(usb|USB)"):
+                    cp_str = str(cp_match).split('-')[0].strip()
+                    try:
+                        self._comm = LockIn.get_serial(cp_str)
+                        break
+                    except serial.SerialException:
+                        print("lockintools: could not connect to port: %s" % cp_str)
 
+        if self._comm is None:
+            raise LockInError("lockintools: CONNECTION FAILED! Do you have a driver installed?")
+        print("lockintools: SUCCESS! Connection established.")
         self.print_to_stdout = True
 
     @property
