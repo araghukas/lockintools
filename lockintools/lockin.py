@@ -114,6 +114,29 @@ class LockIn(object):
         else:
             return
 
+    def set_input_mode(self, mode):
+        """set lockin input configuration"""
+        if mode == "A":
+            self.cmd("ISRC0")
+        elif mode == "A-B":
+            self.cmd("ISRC1")
+        elif mode == "I":
+            self.cmd("ISRC2")
+        elif mode == "I100":
+            self.cmd("ISRC3")
+        else:
+            raise ValueError("invalid mode {}, valid values are 'A', 'A-B', 'I', or 'I100'"
+                             .format(mode))
+
+    def set_coupling_mode(self, mode):
+        if mode == "AC":
+            self.cmd("ICPL0")
+        elif mode == "DC":
+            self.cmd("ICPL1")
+        else:
+            raise ValueError("invalid mode {}, valid values are 'AC' or 'DC'"
+                             .format(mode))
+
     def set_freq(self, freq):
         """set lock-in amp. frequency"""
         command = 'FREQ' + str(freq)
