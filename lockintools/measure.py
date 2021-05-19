@@ -86,8 +86,6 @@ class Measure3w(object):
             _kwargs[key] = value
 
         print("sweeping sample 1-omega voltage")
-        self.lock.set_coupling_mode("AC")
-        # self.lock.set_input_mode("A")
 
         sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs,
                                      ampls=self.ampls, harm=1, **_kwargs)
@@ -100,8 +98,6 @@ class Measure3w(object):
             _kwargs[key] = value
 
         print("sweeping sample 3-omega voltage")
-        self.lock.set_coupling_mode("AC")
-        # self.lock.set_input_mode("A-B")
 
         sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs,
                                      ampls=self.ampls, harm=3, **_kwargs)
@@ -123,8 +119,6 @@ class Measure3w(object):
                 time.sleep(1)
 
         print("sweeping shunt 1-omega voltage")
-        self.lock.set_coupling_mode("AC")
-        # self.lock.set_input_mode("A-B")
 
         sweep_data = self.lock.sweep(label=self.label, freqs=self.freqs,
                                      ampls=self.ampls, harm=1, **_kwargs)
