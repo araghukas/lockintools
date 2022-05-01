@@ -1,5 +1,0 @@
-lockin
-lockintools
-measure
-settings
-tools
