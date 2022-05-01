@@ -1,4 +1,4 @@
-from lockintools import Measure3w
+from lockintools import Measurements
 from lockintools.tools import freqspace
 
 """
@@ -26,10 +26,10 @@ if __name__ == "__main__":
     #                       ampls=3.0)
     #
 
-    m = Measure3w(working_dir='~/Desktop',
-                  create_dir='test_run1',
-                  label='custom_test',
-                  freqs=freqspace(10, 1000, 3))  # [10, 100, 1000] Hz
+    m = Measurements(working_dir='~/Desktop',
+                     create_dir='test_run1',
+                     label='custom_test',
+                     freqs=freqspace(10, 1000, 3))  # [10, 100, 1000] Hz
 
     # can provide LockIn.sweep() arguments as kwargs for the sweep methods
     # below. This includes:

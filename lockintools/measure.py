@@ -6,7 +6,7 @@ from .tools import freqspace, beep
 from .lockin import LockIn, LockInData
 
 
-class Measure3w(object):
+class Measurements(object):
     default_ranges = dict(freqs=freqspace(10, 15000, 10),
                           ampls=3.0)
 
@@ -52,7 +52,7 @@ class Measure3w(object):
     @freqs.setter
     def freqs(self, _freqs):
         if _freqs is None:
-            self._freqs = Measure3w.default_ranges['freqs']
+            self._freqs = Measurements.default_ranges['freqs']
         else:
             self._freqs = _freqs
 
@@ -63,7 +63,7 @@ class Measure3w(object):
     @ampls.setter
     def ampls(self, _ampls):
         if _ampls is None:
-            self._ampls = Measure3w.default_ranges['ampls']
+            self._ampls = Measurements.default_ranges['ampls']
         else:
             self._ampls = _ampls
 
@@ -81,7 +81,7 @@ class Measure3w(object):
             raise ValueError("must assign `LockIn` object to this attribute")
 
     def sweep_sample1w(self, **kwargs):
-        _kwargs = Measure3w.sample_1w_defaults.copy()
+        _kwargs = Measurements.sample_1w_defaults.copy()
         for key, value in kwargs.items():
             _kwargs[key] = value
 
@@ -93,7 +93,7 @@ class Measure3w(object):
         self.lockindata.save_all()
 
     def sweep_sample3w(self, **kwargs):
-        _kwargs = Measure3w.sample_3w_defaults.copy()
+        _kwargs = Measurements.sample_3w_defaults.copy()
         for key, value in kwargs.items():
             _kwargs[key] = value
 
@@ -105,7 +105,7 @@ class Measure3w(object):
         self.lockindata.save_all()
 
     def sweep_shunt1w(self, countdown=True, count=30, **kwargs):
-        _kwargs = Measure3w.shunt_1w_defaults.copy()
+        _kwargs = Measurements.shunt_1w_defaults.copy()
         for key, value in kwargs.items():
             _kwargs[key] = value
 
